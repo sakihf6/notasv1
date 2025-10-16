@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>NOTAS F6 - Editor Dual</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: monospace;
+            background: #06060f;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            line-height: 1.5;
+        }
+        
+        /* Barra superior reorganizada */
+        .top-bar {
+            background: #061725;
+            border-bottom: 1px solid #184d73;
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .top-bar button, .top-bar label.file-btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            background: #184d73;
+            color: white;
+            cursor: pointer;
+            font-size: 12px;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .top-bar button:hover, .top-bar label.file-btn:hover { 
+            background: #0052a3; 
+        }
+        
+        .top-bar .separator {
+            width: 1px;
+            height: 20px;
+            background: #184d73;
+            margin: 0 5px;
+        }
+        
+        .top-bar .char-control {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 12px;
+            color: white;
+        }
+        
+        .top-bar .char-control input[type="number"] {
+            width: 50px;
+            padding: 4px 6px;
+            border: 1px solid #184d73;
+            border-radius: 4px;
+            background: #06060f;
+            color: white;
+            font-size: 12px;
+        }
+        
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #06060f;
+            color: white;
+        }
+        
+        /* Editor dual */
+        .dual-editor {
+            display: flex;
+            flex: 1;
+            gap: 10px;
+            padding: 10px;
+            overflow: hidden;
+        }
+        
+        .editor-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #184d73;
+            border-radius: 4px;
+            overflow: hidden;
+            background: #06060f;
+        }
+        
+        .editor-panel-header {
+            background: #061725;
+            padding: 8px 12px;
+            border-bottom: 1px solid #184d73;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .editor-panel-header input {
+            flex: 1;
+            padding: 4px 8px;
+            border: 1px solid #184d73;
+            border-radius: 4px;
+            background: #06060f;
+            color: white;
+            font-size: 12px;
+        }
+        
+        .editor-panel-header button {
+            padding: 4px 10px;
+            border: none;
+            border-radius: 4px;
+            background: #184d73;
+            color: white;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        
+        .editor-panel-header button:hover {
+            background: #0052a3;
+        }
+        
+        .editor-wrapper {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .line-numbers {
+            padding: 10px 4px;
+            background: #06060f;
+            border-right: 1px solid #061725;
+            user-select: none;
+            text-align: right;
+            color: rgb(255, 255, 255);
+            font-size: 14px;
+            line-height: 1.5;
+            min-width: 40px;
+            overflow: hidden;
+        }
+        
+        .editor-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .note-content {
+            width: 100%;
+            height: 100%;
+            padding: 10px;
+            border: none;
+            resize: none;
+            outline: none;
+            font-family: monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            white-space: pre;
+            overflow-y: auto;
+            position: absolute;
+            background: transparent;
+            z-index: 2;
+            color: transparent;
+            caret-color: white;
+        }
+        
+        .highlight-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            white-space: pre;
+            pointer-events: none;
+            overflow-y: auto;
+            z-index: 1;
+        }
+        
+        .match-info {  
+            display: inline-block;
+            margin-left: 10px;
+            padding: 0 5px;
+            border-radius: 3px;
+            color: #ddcaca;
+            font-size: 12px;
+        }
+        
+        .bin-info {
+            color: #888888;
+            font-size: 11px;
+            margin-left: 10px;
+            opacity: 0.7;
+        }
+        
+        .status-bar {
+            padding: 6px 15px;
+            background: #061725;
+            border-top: 1px solid #061725;
+            font-size: 12px;
+            color: white;
+        }
+        
+        .highlight-0 { color: #2196F3; font-weight: bold; }
+        .highlight-1 { color: #4CAF50; font-weight: bold; }
+        .highlight-2 { color: #F44336; font-weight: bold; }
+        .highlight-3 { color: #9C27B0; font-weight: bold; }
+        .highlight-4 { color: #FF9800; font-weight: bold; }
+
+        .line-number {
+            display: block;
+            height: 1.5em;
+            font-size: 14px;
+            line-height: 1.5;
+            color: #ffffff;
+            padding-right: 5px;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .panel-info {
+            font-size: 10px;
+            color: #888;
+            margin-left: 5px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Barra superior con opciones globales -->
+    <div class="top-bar">
+        <label class="file-btn" onclick="document.getElementById('bin-file-input').click()">
+            📊 Cargar BIN
+        </label>
+        <input type="file" id="bin-file-input" accept=".txt" onchange="cargarBaseDatosBIN(this)">
+        <span id="bin-status" style="font-size: 11px; color: #888;">Sin BD</span>
+        
+        <div class="separator"></div>
+        
+        <div class="char-control">
+            <span>Comparar:</span>
+            <input type="number" id="num-caracteres" value="6" min="1" max="20" onchange="actualizarResaltado()">
+            <span>chars</span>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="main-content">
+            <!-- Editor dual -->
+            <div class="dual-editor">
+                <!-- Panel 1 -->
+                <div class="editor-panel">
+                    <div class="editor-panel-header">
+                        <input type="text" id="note-title-1" placeholder="Nombre del archivo Panel 1">
+                        <button onclick="nuevaNota(1)">➕</button>
+                        <button onclick="guardarNota(1)">💾</button>
+                        <button onclick="document.getElementById('import-1').click()">📥</button>
+                        <button onclick="exportarNota(1)">📤</button>
+                        <button onclick="limpiarPanel(1)">🗑️</button>
+                        <input type="file" id="import-1" accept=".txt" onchange="importarNota(1, this)">
+                        <span class="panel-info" id="panel-info-1">Sin guardar</span>
+                    </div>
+                    <div class="editor-wrapper">
+                        <div class="line-numbers" id="line-numbers-1"></div>
+                        <div class="editor-container">
+                            <div class="highlight-layer" id="highlight-layer-1"></div>
+                            <textarea class="note-content" id="note-content-1" spellcheck="false" 
+                                onscroll="sincronizarScroll(1)" 
+                                oninput="manejarInput(1)"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Panel 2 -->
+                <div class="editor-panel">
+                    <div class="editor-panel-header">
+                        <input type="text" id="note-title-2" placeholder="Nombre del archivo Panel 2">
+                        <button onclick="nuevaNota(2)">➕</button>
+                        <button onclick="guardarNota(2)">💾</button>
+                        <button onclick="document.getElementById('import-2').click()">📥</button>
+                        <button onclick="exportarNota(2)">📤</button>
+                        <button onclick="limpiarPanel(2)">🗑️</button>
+                        <input type="file" id="import-2" accept=".txt" onchange="importarNota(2, this)">
+                        <span class="panel-info" id="panel-info-2">Sin guardar</span>
+                    </div>
+                    <div class="editor-wrapper">
+                        <div class="line-numbers" id="line-numbers-2"></div>
+                        <div class="editor-container">
+                            <div class="highlight-layer" id="highlight-layer-2"></div>
+                            <textarea class="note-content" id="note-content-2" spellcheck="false" 
+                                onscroll="sincronizarScroll(2)" 
+                                oninput="manejarInput(2)"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="status-bar" id="status-bar">Listo</div>
+        </div>
+    </div>
+
+    <script>
+        let baseDatosBIN = [];
+        let panel1Guardado = true;
+        let panel2Guardado = true;
+
+        window.onload = () => {
+            cargarPanelDesdeLocalStorage(1);
+            cargarPanelDesdeLocalStorage(2);
+            actualizarLineNumbers(1);
+            actualizarLineNumbers(2);
+        };
+
+        function obtenerNombreConFecha(panel) {
+            const titulo = document.getElementById(`note-title-${panel}`).value.trim();
+            const nombre = titulo || `Panel${panel}`;
+            const fecha = new Date();
+            const año = fecha.getFullYear();
+            const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+            const dia = String(fecha.getDate()).padStart(2, '0');
+            const hora = String(fecha.getHours()).padStart(2, '0');
+            const minuto = String(fecha.getMinutes()).padStart(2, '0');
+            const segundo = String(fecha.getSeconds()).padStart(2, '0');
+            
+            return `${nombre}-${año}${mes}${dia}-${hora}${minuto}${segundo}`;
+        }
+
+        function cargarBaseDatosBIN(input) {
+            const file = input.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const content = e.target.result;
+                    baseDatosBIN = parsearBaseDatosBIN(content);
+                    document.getElementById('bin-status').textContent = `${baseDatosBIN.length} BINs`;
+                    actualizarResaltado();
+                    actualizarStatusBar(`Base de datos BIN cargada: ${baseDatosBIN.length} registros`);
+                };
+                reader.readAsText(file);
+            }
+        }
+
+        function parsearBaseDatosBIN(content) {
+            const lines = content.split('\n');
+            const database = [];
+            
+            lines.forEach(line => {
+                if (line.trim() === '') return;
+                
+                const matches = line.match(/"([^"]*)"/g);
+                if (matches && matches.length >= 4) {
+                    const bin = matches[0].replace(/"/g, '');
+                    const pais = matches[1].replace(/"/g, '');
+                    const bandera = matches[2] ? matches[2].replace(/"/g, '') : '';
+                    const marca = matches[3].replace(/"/g, '');
+                    const tipo = matches[4] ? matches[4].replace(/"/g, '') : '';
+                    const nivel = matches[5] ? matches[5].replace(/"/g, '') : '';
+                    const banco = matches[6] ? matches[6].replace(/"/g, '') : '';
+                    
+                    database.push({
+                        bin: bin,
+                        pais: pais,
+                        bandera: bandera,
+                        marca: marca,
+                        tipo: tipo,
+                        nivel: nivel,
+                        banco: banco
+                    });
+                }
+            });
+            
+            return database;
+        }
+
+        function buscarInfoBIN(numeroLinea) {
+            if (baseDatosBIN.length === 0) return null;
+            
+            const match = numeroLinea.match(/^\d{6}/);
+            if (!match) return null;
+            
+            const bin = match[0];
+            const info = baseDatosBIN.find(item => item.bin === bin);
+            
+            if (info) {
+                let resultado = '';
+                if (info.bandera) resultado += `${info.bandera} `;
+                if (info.marca) resultado += `${info.marca} `;
+                if (info.tipo) resultado += `${info.tipo} `;
+                if (info.nivel) resultado += `${info.nivel} `;
+                if (info.banco) resultado += `- ${info.banco}`;
+                return resultado.trim();
+            }
+            
+            return null;
+        }
+
+        function actualizarLineNumbers(panel) {
+            const lineNumbers = document.getElementById(`line-numbers-${panel}`);
+            const lines = document.getElementById(`note-content-${panel}`).value.split('\n');
+            lineNumbers.innerHTML = lines.map((_, i) => 
+                `<span class="line-number">${i + 1}</span>`
+            ).join('');
+        }
+
+        function actualizarResaltado() {
+            actualizarResaltadoPanel(1);
+            actualizarResaltadoPanel(2);
+        }
+
+        function actualizarResaltadoPanel(panel) {
+            const textarea = document.getElementById(`note-content-${panel}`);
+            const highlightLayer = document.getElementById(`highlight-layer-${panel}`);
+            const numCaracteres = parseInt(document.getElementById('num-caracteres').value);
+            const lineas = textarea.value.split('\n');
+            
+            const repeticiones = new Map();
+            lineas.forEach((linea, index) => {
+                const inicio = linea.substring(0, numCaracteres);
+                if (inicio.length === numCaracteres && /^\d+$/.test(inicio)) {
+                    if (!repeticiones.has(inicio)) {
+                        repeticiones.set(inicio, []);
+                    }
+                    repeticiones.get(inicio).push(index + 1);
+                }
+            });
+
+            const numerosRepetidos = new Map();
+            repeticiones.forEach((lineas, numero) => {
+                if (lineas.length > 1) {
+                    numerosRepetidos.set(numero, lineas);
+                }
+            });
+
+            let htmlContent = lineas.map((linea, index) => {
+                const inicio = linea.substring(0, numCaracteres);
+                const resto = linea.substring(numCaracteres);
+                let resultado = '';
+                
+                if (numerosRepetidos.has(inicio)) {
+                    const colorIndex = Array.from(numerosRepetidos.keys()).indexOf(inicio) % 5;
+                    const lineasCoincidentes = numerosRepetidos.get(inicio)
+                        .filter(l => l !== index + 1)
+                        .join(', ');
+                    resultado = `<span class="highlight-${colorIndex}">${inicio}</span><span style="color: white;">${resto}</span><span class="match-info">→ L${lineasCoincidentes}</span>`;
+                } else {
+                    resultado = `<span style="color: white;">${linea}</span>`;
+                }
+                
+                const binInfo = buscarInfoBIN(linea);
+                if (binInfo) {
+                    resultado += `<span class="bin-info">${binInfo}</span>`;
+                }
+                
+                return resultado;
+            }).join('\n');
+
+            highlightLayer.innerHTML = htmlContent;
+            actualizarLineNumbers(panel);
+        }
+
+        function sincronizarScroll(panel) {
+            const textarea = document.getElementById(`note-content-${panel}`);
+            const highlightLayer = document.getElementById(`highlight-layer-${panel}`);
+            const lineNumbers = document.getElementById(`line-numbers-${panel}`);
+            highlightLayer.scrollTop = textarea.scrollTop;
+            lineNumbers.scrollTop = textarea.scrollTop;
+        }
+
+        function nuevaNota(panel) {
+            if (!eval(`panel${panel}Guardado`)) {
+                if (!confirm('Hay cambios sin guardar en este panel. ¿Deseas continuar?')) {
+                    return;
+                }
+            }
+            document.getElementById(`note-title-${panel}`).value = '';
+            document.getElementById(`note-content-${panel}`).value = '';
+            actualizarResaltadoPanel(panel);
+            eval(`panel${panel}Guardado = true`);
+            actualizarInfoPanel(panel, 'Nuevo archivo');
+        }
+
+        function guardarNota(panel) {
+            const contenido = document.getElementById(`note-content-${panel}`).value;
+            const nombreArchivo = obtenerNombreConFecha(panel);
+            
+            // Guardar en localStorage
+            const datosPanel = {
+                titulo: document.getElementById(`note-title-${panel}`).value,
+                contenido: contenido,
+                nombreArchivo: nombreArchivo,
+                fecha: new Date().toISOString()
+            };
+            
+            localStorage.setItem(`panel${panel}`, JSON.stringify(datosPanel));
+            
+            eval(`panel${panel}Guardado = true`);
+            actualizarInfoPanel(panel, `Guardado: ${nombreArchivo}`);
+            actualizarStatusBar(`Panel ${panel} guardado como: ${nombreArchivo}`);
+        }
+
+        function exportarNota(panel) {
+            const contenido = document.getElementById(`note-content-${panel}`).value;
+            const nombreArchivo = obtenerNombreConFecha(panel);
+            
+            const blob = new Blob([contenido], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${nombreArchivo}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            actualizarStatusBar(`Panel ${panel} exportado como: ${nombreArchivo}.txt`);
+        }
+
+        function importarNota(panel, input) {
+            const file = input.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const contenido = e.target.result;
+                    document.getElementById(`note-content-${panel}`).value = contenido;
+                    document.getElementById(`note-title-${panel}`).value = file.name.replace('.txt', '');
+                    actualizarResaltadoPanel(panel);
+                    eval(`panel${panel}Guardado = false`);
+                    actualizarInfoPanel(panel, 'Archivo importado - Sin guardar');
+                    input.value = '';
+                };
+                reader.readAsText(file);
+            }
+        }
+
+        function limpiarPanel(panel) {
+            if (!eval(`panel${panel}Guardado`)) {
+                if (!confirm('Hay cambios sin guardar. ¿Deseas continuar?')) {
+                    return;
+                }
+            }
+            document.getElementById(`note-title-${panel}`).value = '';
+            document.getElementById(`note-content-${panel}`).value = '';
+            document.getElementById(`highlight-layer-${panel}`).innerHTML = '';
+            actualizarLineNumbers(panel);
+            eval(`panel${panel}Guardado = true`);
+            actualizarInfoPanel(panel, 'Panel limpio');
+        }
+
+        function cargarPanelDesdeLocalStorage(panel) {
+            const datos = localStorage.getItem(`panel${panel}`);
+            if (datos) {
+                const datosPanel = JSON.parse(datos);
+                document.getElementById(`note-title-${panel}`).value = datosPanel.titulo || '';
+                document.getElementById(`note-content-${panel}`).value = datosPanel.contenido || '';
+                actualizarResaltadoPanel(panel);
+                eval(`panel${panel}Guardado = true`);
+                actualizarInfoPanel(panel, `Cargado: ${datosPanel.nombreArchivo || 'Sin nombre'}`);
+            }
+        }
+
+        function manejarInput(panel) {
+            actualizarResaltadoPanel(panel);
+            if (eval(`panel${panel}Guardado`)) {
+                eval(`panel${panel}Guardado = false`);
+                actualizarInfoPanel(panel, 'Sin guardar');
+            }
+        }
+
+        function actualizarInfoPanel(panel, mensaje) {
+            document.getElementById(`panel-info-${panel}`).textContent = mensaje;
+        }
+
+        function actualizarStatusBar(mensaje) {
+            const statusBar = document.getElementById('status-bar');
+            statusBar.textContent = mensaje;
+            statusBar.style.opacity = '1';
+            
+            if (statusBar.timeoutId) {
+                clearTimeout(statusBar.timeoutId);
+            }
+            
+            statusBar.timeoutId = setTimeout(() => {
+                statusBar.style.opacity = '0.7';
+            }, 3000);
+        }
+
+        // Atajos de teclado
+        document.addEventListener('keydown', function(e) {
+            // Guardar Panel 1 con Ctrl+1
+            if ((e.ctrlKey || e.metaKey) && e.key === '1') {
+                e.preventDefault();
+                guardarNota(1);
+            }
+            // Guardar Panel 2 con Ctrl+2
+            if ((e.ctrlKey || e.metaKey) && e.key === '2') {
+                e.preventDefault();
+                guardarNota(2);
+            }
+        });
+
+        // Inicializar números de línea
+        document.getElementById('line-numbers-1').innerHTML = '<span class="line-number">1</span>';
+        document.getElementById('line-numbers-2').innerHTML = '<span class="line-number">1</span>';
+    </script>
+</body>
+</html>
